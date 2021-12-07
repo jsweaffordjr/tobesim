@@ -1,7 +1,7 @@
 <launch>
 
   <param name="robot_description"
-    command="$(find xacro)/xacro '$(find tobe_description)/tobe.xacro'" /> 
+    command="$(find xacro)/xacro $(find tobe_description)/tobe.xacro" /> 
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="worlds/empty.world"/>
