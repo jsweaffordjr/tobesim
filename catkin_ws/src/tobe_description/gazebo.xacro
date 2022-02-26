@@ -13,7 +13,7 @@
 		    <topicName>/tobe/imu</topicName>
 		    <serviceName>imu_service</serviceName>
 		    <gaussianNoise>0.0</gaussianNoise>
-		    <updateRate>20.0</updateRate>
+		    <updateRate>50.0</updateRate>
 		    <visualize>true</visualize>
 		</plugin>
     </gazebo>

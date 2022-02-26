@@ -4,7 +4,6 @@ from threading import Thread
 import rospy
 import math
 import numpy as np
-from tobe_gazebo.tobe import Tobe
 from geometry_msgs.msg import Vector3
 
 
@@ -16,8 +15,8 @@ class WalkFunc:
 
     def __init__(self):
         K1 = 0.35  # home position leg extension
-        K2 = -0.1  # -0.15 home position leg roll angle
-        K3 = -0.2  # -0.45 home position leg pitch angle
+        K2 = -0.15  # -0.1 home position leg roll angle
+        K3 = -0.45  # -0.2 home position leg pitch angle
         K4 = 0.05  # home position foot roll angle
         K5 = -0.12  # home position foot pitch angle
         self.eta_R = K1
@@ -206,9 +205,8 @@ class WalkFunc:
         dA3 = min(max(At[2]-self.A[2], -K23*dt), K23*dt)
         dA = np.array([dA1, dA2, dA3])
 
-        # below, I am using A = At:
-        # At+0* to use the algorithm as originally designed, remove 'At' and and the zero multiplier
-        A = (self.A+dA)
+        # update swing amplitude 
+        A = self.A+dA
         self.A = A
         return A
 
@@ -254,36 +252,36 @@ class WalkFunc:
 
         # set leg joint angles
         angles = {}
-        angles["l_ankle_lateral_joint"] = -(phi_Lfoot[0]+Llegroll)
-        angles["l_ankle_swing_joint"] = -(phi_Lfoot[1]-Llegpitch-zeta_L)
-        angles["l_knee_joint"] = 2*zeta_L
-        angles["l_hip_swing_joint"] = (Llegpitch-zeta_L)
-        angles["l_hip_lateral_joint"] = -(Llegroll)
-        angles["l_hip_twist_joint"] = Llegyaw
-        angles["r_hip_twist_joint"] = Rlegyaw
-        angles["r_hip_lateral_joint"] = -(Rlegroll)
-        angles["r_hip_swing_joint"] = -(Rlegpitch-zeta_R)
-        angles["r_knee_joint"] = -2*zeta_R
-        angles["r_ankle_swing_joint"] = phi_Rfoot[1]-Rlegpitch-zeta_R
-        angles["r_ankle_lateral_joint"] = phi_Rfoot[0]-Rlegroll
+        angles["l_ankle_frontal"] = -(phi_Lfoot[0]+Llegroll)
+        angles["l_ankle_sagittal"] = -(phi_Lfoot[1]-Llegpitch-zeta_L)
+        angles["l_knee"] = 2*zeta_L
+        angles["l_hip_sagittal"] = (Llegpitch-zeta_L)
+        angles["l_hip_frontal"] = -(Llegroll)
+        angles["l_hip_swivel"] = Llegyaw
+        angles["r_hip_swivel"] = Rlegyaw
+        angles["r_hip_frontal"] = -(Rlegroll)
+        angles["r_hip_sagittal"] = -(Rlegpitch-zeta_R)
+        angles["r_knee"] = -2*zeta_R
+        angles["r_ankle_sagittal"] = phi_Rfoot[1]-Rlegpitch-zeta_R
+        angles["r_ankle_frontal"] = phi_Rfoot[0]-Rlegroll
 
         # set arm joint angles
         sag = -math.pi/8  # max sagittal shoulder joint displacement
         elb = math.pi/6  # max elbow joint displacement
         mu = phase-0.6  # offset arm motion phase by pi to alternate arm swinging appropriately
 
-        angles["l_shoulder_lateral_joint"] = -math.pi/9
-        angles["r_shoulder_lateral_joint"] = -math.pi/9
+        angles["l_shoulder_frontal"] = -math.pi/9
+        angles["r_shoulder_frontal"] = -math.pi/9
         if sum(abs(A)) > 0:  # if desired walk speed is greater than zero, then move arms
-            angles["l_shoulder_swing_joint"] = sag*math.sin(mu)
-            angles["l_elbow_joint"] = elb*math.cos(mu+math.pi)-elb
-            angles["r_shoulder_swing_joint"] = sag*math.sin(mu)
-            angles["r_elbow_joint"] = elb*math.cos(mu+math.pi)+elb
+            angles["l_shoulder_sagittal"] = sag*math.sin(mu)
+            angles["l_elbow"] = elb*math.cos(mu+math.pi)-elb
+            angles["r_shoulder_sagittal"] = sag*math.sin(mu)
+            angles["r_elbow"] = elb*math.cos(mu+math.pi)+elb
         else:  # otherwise, set arms to these angles, when no walking is desired
-            angles["l_shoulder_swing_joint"] = 0.3927
-            angles["l_elbow_joint"] = -0.5236
-            angles["r_shoulder_swing_joint"] = 0.3927
-            angles["r_elbow_joint"] = 0.5236
+            angles["l_shoulder_sagittal"] = 0.3927
+            angles["l_elbow"] = -0.5236
+            angles["r_shoulder_sagittal"] = 0.3927
+            angles["r_elbow"] = 0.5236
 
         return angles
 
@@ -291,33 +289,31 @@ class WalkFunc:
         """
         Populate joints, initial pose for walking with 18-DOF robot
         """
-        self.pfn = {}  # phase joint functions
+        # set leg joint angles
+        angles = {}
 
         f = [-0.2, -1.1932, -1.7264, 0.4132, -0.15, 0, 0, 0.15, -0.4132, 1.7264,
              1.1932, 0.2, -0.3927, -0.3491, -0.5236, 0.3927, -0.3491, 0.5236]
 
-        self.pfn["l_ankle_lateral_joint"] = f[0]
-        self.pfn["l_ankle_swing_joint"] = f[1]
-        self.pfn["l_knee_joint"] = f[2]
-        self.pfn["l_hip_swing_joint"] = f[3]
-        self.pfn["l_hip_lateral_joint"] = f[4]
-        self.pfn["l_hip_twist_joint"] = f[5]
-        self.pfn["r_hip_twist_joint"] = f[6]
-        self.pfn["r_hip_lateral_joint"] = f[7]
-        self.pfn["r_hip_swing_joint"] = f[8]
-        self.pfn["r_knee_joint"] = f[9]
-        self.pfn["r_ankle_swing_joint"] = f[10]
-        self.pfn["r_ankle_lateral_joint"] = f[11]
-        self.pfn["l_shoulder_swing_joint"] = f[12]
-        self.pfn["l_shoulder_lateral_joint"] = f[13]
-        self.pfn["l_elbow_joint"] = f[14]
-        self.pfn["r_shoulder_swing_joint"] = f[15]
-        self.pfn["r_shoulder_lateral_joint"] = f[16]
-        self.pfn["r_elbow_joint"] = f[17]
-
-        self.joints = self.pfn.keys()
-
-        self.show()
+        angles["l_ankle_frontal"] = f[0]
+        angles["l_ankle_sagittal"] = f[1]
+        angles["l_knee"] = f[2]
+        angles["l_hip_sagittal"] = f[3]
+        angles["l_hip_frontal"] = f[4]
+        angles["l_hip_swivel"] = f[5]
+        angles["r_hip_swivel"] = f[6]
+        angles["r_hip_frontal"] = f[7]
+        angles["r_hip_sagittal"] = f[8]
+        angles["r_knee"] = f[9]
+        angles["r_ankle_sagittal"] = f[10]
+        angles["r_ankle_frontal"] = f[11]
+        angles["l_shoulder_sagittal"] = f[12]
+        angles["l_shoulder_frontal"] = f[13]
+        angles["l_elbow"] = f[14]
+        angles["r_shoulder_sagittal"] = f[15]
+        angles["r_shoulder_frontal"] = f[16]
+        angles["r_elbow"] = f[17]
+        return angles
 
 
 class Walker:
@@ -325,8 +321,7 @@ class Walker:
     Class for making Tobe walk
     """
 
-    def __init__(self, tobe):
-        self.tobe = tobe
+    def __init__(self):
         self.running = False
 
         self.velocity = [0, 0, 0]
@@ -337,12 +332,11 @@ class Walker:
         self.T = self.Tinit
         self.phase = -math.pi
         self.A = self.func.update_walk(self.velocity, self.dt, self.phase)
-        self.ready_pos = self.func.get(self.A, self.phase)
+        self.ready_pos = self.func.generate() #self.func.get(self.A, self.phase)
 
         self._th_walk = None
 
-        self._sub_cmd_vel = rospy.Subscriber(
-            tobe.ns+"cmd_vel", Vector3, self._cb_cmd_vel, queue_size=1)
+#        self._sub_cmd_vel = rospy.Subscriber(tobe.ns+"cmd_vel", Vector3, self._cb_cmd_vel, queue_size=1)
 
     def _cb_cmd_vel(self, msg):
         """
@@ -361,7 +355,7 @@ class Walker:
         """
         rospy.loginfo("Going to walk position")
         if self.get_dist_to_ready() > 0.02:
-            self.tobe.set_angles_slow(self.ready_pos)
+            #self.tobe.set_angles_slow(self.ready_pos)
             rospy.loginfo("Done")
 
     def start(self):
@@ -433,7 +427,7 @@ class Walker:
             self.A = func.update_walk(self.velocity, dt, self.phase)
             angles = func.get(self.A, self.phase)
             self.update_velocity(self.velocity, n)
-            self.tobe.set_angles(angles)
+            #self.tobe.set_angles(angles)
             r.sleep()
         rospy.loginfo("Finished walking thread")
 
@@ -463,7 +457,7 @@ class Walker:
             a*t+b*v for (t, v) in zip(target, self.current_velocity)]
 
     def get_dist_to_ready(self):
-        angles = self.tobe.get_angles()
+        #angles = self.tobe.get_angles()
         return get_distance(self.ready_pos, angles)
 
 
@@ -486,15 +480,3 @@ def get_distance(anglesa, anglesb):
     return d
 
 
-if __name__ == "__main__":
-    rospy.init_node("walker")
-    rospy.sleep(1)
-
-    rospy.loginfo("Instantiating Tobe Client")
-    tobe = Tobe()
-    rospy.loginfo("Instantiating Tobe Walker")
-    walker = Walker(tobe)
-
-    rospy.loginfo("Tobe Walker Ready")
-    while not rospy.is_shutdown():
-        rospy.sleep(1)
