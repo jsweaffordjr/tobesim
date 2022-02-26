@@ -1,7 +1,7 @@
 # tobesim
 Python implementation of Gazebo simulation of TOBE robot
 
-I made a step-by-step video, illustrating how to clone this repo onto a PC and use it to execute walking for TOBE in simulation. 
+I made a step-by-step video for the initial commit, illustrating how to clone this repo onto a PC and use it to execute walking for TOBE in simulation. 
 The video is available at: https://www.youtube.com/watch?v=yBU5GnSuJKs
 
 Here is the summary:
