@@ -1,7 +1,9 @@
 # tobesim
 Python implementation of Gazebo simulation of TOBE robot
 
-I made a step-by-step video for the initial commit, illustrating how to clone this repo onto a PC and use it to execute walking for TOBE in simulation. 
+The latest update video (based on Feb 26, 2022 commit) is at: https://www.youtube.com/watch?v=9gcylE07pNc
+
+I previously made a step-by-step video for the initial commit, illustrating how to clone this repo onto a PC and use it to execute walking for TOBE in simulation. 
 The video is available at: https://www.youtube.com/watch?v=yBU5GnSuJKs
 
 Here is the summary:
